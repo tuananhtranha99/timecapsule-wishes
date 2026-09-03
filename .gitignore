@@ -1,0 +1,22 @@
+# IDE & OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Backend (Maven / Java)
+backend/target/
+backend/*.log
+backend/.flattened-pom.xml
+
+# Frontend (Node)
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
+
+# Environment secrets
+.env
+*.env
+!.env.example

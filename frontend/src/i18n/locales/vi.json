@@ -1,0 +1,102 @@
+{
+  "app": {
+    "title": "Time-Capsule Wishes",
+    "subtitle": "Thiệp chúc & Lời chúc cá nhân hóa theo cột mốc thời gian"
+  },
+  "nav": {
+    "recipients": "Người nhận",
+    "wishes": "Lời chúc",
+    "logout": "Đăng xuất",
+    "login": "Đăng nhập",
+    "register": "Đăng ký"
+  },
+  "auth": {
+    "loginTitle": "Chào mừng trở lại",
+    "loginSubtitle": "Đăng nhập để xem các cột mốc và tạo lời chúc ý nghĩa",
+    "registerTitle": "Tạo tài khoản mới",
+    "registerSubtitle": "Bắt đầu lưu giữ những kỷ niệm đáng nhớ của người thân",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "displayName": "Tên hiển thị",
+    "loginButton": "Đăng nhập",
+    "registerButton": "Đăng ký tài khoản",
+    "noAccount": "Chưa có tài khoản?",
+    "haveAccount": "Đã có tài khoản?",
+    "loginSuccess": "Đăng nhập thành công!",
+    "registerSuccess": "Đăng ký tài khoản thành công!",
+    "logoutSuccess": "Đã đăng xuất"
+  },
+  "recipients": {
+    "title": "Danh sách người nhận",
+    "subtitle": "Quản lý bạn bè, người thân để lưu giữ cột mốc và chúc mừng",
+    "addBtn": "Thêm người nhận",
+    "empty": "Chưa có người nhận nào. Hãy thêm người đầu tiên!",
+    "name": "Họ và tên",
+    "birthday": "Ngày sinh nhật",
+    "relationship": "Mối quan hệ",
+    "notes": "Ghi chú cá nhân",
+    "actions": "Thao tác",
+    "createTitle": "Thêm người nhận mới",
+    "editTitle": "Chỉnh sửa người nhận",
+    "saveBtn": "Lưu thông tin",
+    "cancelBtn": "Hủy bỏ",
+    "deleteConfirm": "Bạn có chắc chắn muốn xóa người này cùng toàn bộ cột mốc và lời chúc?",
+    "milestonesCount": "{{count}} cột mốc",
+    "generateWish": "Tạo lời chúc"
+  },
+  "milestones": {
+    "title": "Cột mốc của {{name}}",
+    "subtitle": "Ghi lại những điều đáng nhớ diễn ra trong năm",
+    "addBtn": "Ghi nhận cột mốc",
+    "empty": "Chưa có cột mốc nào được lưu. Hãy ghi lại thành tựu, chuyến đi, kỷ niệm!",
+    "description": "Mô tả cột mốc",
+    "category": "Danh mục",
+    "occurredAt": "Thời điểm diễn ra (có thể lùi ngày)",
+    "categories": {
+      "CAREER": "Sự nghiệp & Học tập",
+      "TRAVEL": "Du lịch & Trải nghiệm",
+      "HEALTH": "Sức khỏe & Thể thao",
+      "RELATIONSHIP": "Tình cảm & Gia đình",
+      "ACHIEVEMENT": "Thành tựu nổi bật",
+      "OTHER": "Kỷ niệm khác"
+    },
+    "createTitle": "Ghi nhận cột mốc mới",
+    "editTitle": "Chỉnh sửa cột mốc",
+    "deleteConfirm": "Bạn có chắc chắn muốn xóa cột mốc này?"
+  },
+  "wishes": {
+    "title": "Sinh lời chúc bằng AI",
+    "subtitle": "Tổng hợp các cột mốc có thật thành lời chúc độc nhất vô nhị",
+    "selectMilestones": "Chọn các cột mốc muốn đưa vào lời chúc:",
+    "occasion": "Dịp chúc mừng",
+    "occasions": {
+      "BIRTHDAY": "Sinh nhật",
+      "TET": "Tết Nguyên Đán",
+      "ANNIVERSARY": "Kỷ niệm",
+      "CUSTOM": "Dịp đặc biệt khác"
+    },
+    "language": "Ngôn ngữ lời chúc",
+    "customPrompt": "Gợi ý / Phong cách mong muốn (tùy chọn)",
+    "customPromptPlaceholder": "Ví dụ: Giọng điệu ấm áp, hài hước, nhắc nhớ chuyện đi chơi...",
+    "generateBtn": "Tạo lời chúc ngay",
+    "generating": "AI đang sáng tạo lời chúc cá nhân hóa...",
+    "resultTitle": "Lời chúc được tạo cho bạn",
+    "version": "Phiên bản {{version}}",
+    "copyBtn": "Sao chép lời chúc",
+    "copied": "Đã sao chép vào bộ nhớ tạm!",
+    "editBtn": "Chỉnh sửa lời chúc",
+    "saveRevisionBtn": "Lưu bản chỉnh sửa (Revision)",
+    "historyTitle": "Lịch sử lời chúc đã tạo",
+    "noHistory": "Chưa có lịch sử lời chúc nào cho người này.",
+    "zeroMilestonesAlert": "Không chọn cột mốc nào — AI sẽ tạo lời chúc ấm áp tổng quát."
+  },
+  "common": {
+    "loading": "Đang tải dữ liệu...",
+    "error": "Đã có lỗi xảy ra",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "edit": "Sửa",
+    "back": "Quay lại"
+  }
+}
