@@ -1,7 +1,6 @@
-const CACHE_NAME = 'time-capsule-v1';
+const CACHE_NAME = 'time-capsule-v2';
 const STATIC_ASSETS = [
   '/',
-  '/index.html',
   '/manifest.json',
   '/pwa-192x192.svg',
   '/pwa-512x512.svg',
@@ -32,13 +31,24 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Never intercept non-GET requests (e.g. POST, PUT, DELETE)
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   const requestUrl = new URL(event.request.url);
 
-  // Network-first for API requests
-  if (requestUrl.pathname.startsWith('/api/')) {
+  // Network-first for navigation (HTML page) so users always get the newest app version
+  if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(event.request).catch(() => caches.match('/index.html'))
     );
+    return;
+  }
+
+  // Network-only for API requests
+  if (requestUrl.pathname.startsWith('/api/') || requestUrl.pathname.startsWith('/auth/')) {
+    event.respondWith(fetch(event.request));
     return;
   }
 

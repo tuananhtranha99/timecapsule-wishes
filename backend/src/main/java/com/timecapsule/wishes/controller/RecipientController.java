@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/recipients")
+@RequestMapping({"/api/v1/recipients", "/recipients"})
 @RequiredArgsConstructor
 @Tag(name = "Recipients", description = "CRUD operations for people you care about")
 public class RecipientController {

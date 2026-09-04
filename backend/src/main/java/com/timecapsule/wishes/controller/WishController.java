@@ -31,7 +31,7 @@ public class WishController {
     private final WishGenerationService wishGenerationService;
 
     @Operation(summary = "Generate a personalized wish using AI synthesizing selected milestones")
-    @PostMapping("/api/v1/wishes/generate")
+    @PostMapping({"/api/v1/wishes/generate", "/wishes/generate"})
     public ResponseEntity<ApiResponse<WishResponse>> generateWish(
             @Valid @RequestBody GenerateWishRequest request,
             @AuthenticationPrincipal UserPrincipal principal
@@ -42,7 +42,7 @@ public class WishController {
     }
 
     @Operation(summary = "Get wish generation history for a recipient")
-    @GetMapping("/api/v1/recipients/{recipientId}/wishes")
+    @GetMapping({"/api/v1/recipients/{recipientId}/wishes", "/recipients/{recipientId}/wishes"})
     public ResponseEntity<ApiResponse<List<WishResponse>>> getWishesByRecipient(
             @PathVariable UUID recipientId,
             @AuthenticationPrincipal UserPrincipal principal
@@ -52,7 +52,7 @@ public class WishController {
     }
 
     @Operation(summary = "Get single wish by ID")
-    @GetMapping("/api/v1/wishes/{id}")
+    @GetMapping({"/api/v1/wishes/{id}", "/wishes/{id}"})
     public ResponseEntity<ApiResponse<WishResponse>> getWishById(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal
@@ -62,7 +62,7 @@ public class WishController {
     }
 
     @Operation(summary = "Edit and save a new revision of a wish")
-    @PutMapping("/api/v1/wishes/{id}")
+    @PutMapping({"/api/v1/wishes/{id}", "/wishes/{id}"})
     public ResponseEntity<ApiResponse<WishResponse>> editWish(
             @PathVariable UUID id,
             @Valid @RequestBody EditWishRequest request,

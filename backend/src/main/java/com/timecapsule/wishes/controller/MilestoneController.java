@@ -32,7 +32,7 @@ public class MilestoneController {
     private final MilestoneService milestoneService;
 
     @Operation(summary = "Get all milestones for a recipient ordered chronologically")
-    @GetMapping("/api/v1/recipients/{recipientId}/milestones")
+    @GetMapping({"/api/v1/recipients/{recipientId}/milestones", "/recipients/{recipientId}/milestones"})
     public ResponseEntity<ApiResponse<List<MilestoneResponse>>> getMilestonesByRecipient(
             @PathVariable UUID recipientId,
             @AuthenticationPrincipal UserPrincipal principal
@@ -42,7 +42,7 @@ public class MilestoneController {
     }
 
     @Operation(summary = "Log a new milestone for a recipient")
-    @PostMapping("/api/v1/recipients/{recipientId}/milestones")
+    @PostMapping({"/api/v1/recipients/{recipientId}/milestones", "/recipients/{recipientId}/milestones"})
     public ResponseEntity<ApiResponse<MilestoneResponse>> createMilestone(
             @PathVariable UUID recipientId,
             @Valid @RequestBody CreateMilestoneRequest request,
@@ -54,7 +54,7 @@ public class MilestoneController {
     }
 
     @Operation(summary = "Get a single milestone by ID")
-    @GetMapping("/api/v1/milestones/{id}")
+    @GetMapping({"/api/v1/milestones/{id}", "/milestones/{id}"})
     public ResponseEntity<ApiResponse<MilestoneResponse>> getMilestoneById(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal
@@ -64,7 +64,7 @@ public class MilestoneController {
     }
 
     @Operation(summary = "Update an existing milestone")
-    @PutMapping("/api/v1/milestones/{id}")
+    @PutMapping({"/api/v1/milestones/{id}", "/milestones/{id}"})
     public ResponseEntity<ApiResponse<MilestoneResponse>> updateMilestone(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateMilestoneRequest request,
@@ -75,7 +75,7 @@ public class MilestoneController {
     }
 
     @Operation(summary = "Delete a milestone")
-    @DeleteMapping("/api/v1/milestones/{id}")
+    @DeleteMapping({"/api/v1/milestones/{id}", "/milestones/{id}"})
     public ResponseEntity<ApiResponse<Void>> deleteMilestone(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal
