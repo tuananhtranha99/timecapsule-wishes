@@ -16,6 +16,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Component("groqClient")
@@ -32,7 +33,7 @@ public class GroqClientImpl implements AiClient {
             RestClient restClient,
             ObjectMapper objectMapper,
             @Value("${app.ai.groq.api-key:mock-groq-key}") String apiKey,
-            @Value("${app.ai.groq.model:llama-3.1-8b-instant}") String model,
+            @Value("${app.ai.groq.model:openai/gpt-oss-120b}") String model,
             @Value("${app.ai.groq.base-url:https://api.groq.com}") String baseUrl
     ) {
         this.restClient = restClient;
@@ -50,7 +51,7 @@ public class GroqClientImpl implements AiClient {
         if (model != null && !model.isBlank()) {
             candidateModels.add(model.trim());
         }
-        for (String m : List.of("llama-3.1-8b-instant", "llama-3.3-70b-versatile", "mixtral-8x7b-32768")) {
+        for (String m : List.of("openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant")) {
             if (!candidateModels.contains(m)) {
                 candidateModels.add(m);
             }
@@ -65,8 +66,9 @@ public class GroqClientImpl implements AiClient {
                 log.warn("Groq model '{}' not found (404). Trying next candidate...", targetModel);
                 lastException = notFoundEx;
             } catch (Exception ex) {
-                if (ex.getMessage() != null && ex.getMessage().contains("404")) {
-                    log.warn("Groq model '{}' returned 404: {}. Trying next candidate...", targetModel, ex.getMessage());
+                String msg = ex.getMessage() != null ? ex.getMessage() : "";
+                if (msg.contains("404") || msg.contains("model_decommissioned") || msg.contains("does not exist")) {
+                    log.warn("Groq model '{}' unavailable: {}. Trying next candidate...", targetModel, msg);
                     lastException = ex;
                     continue;
                 }
@@ -74,10 +76,24 @@ public class GroqClientImpl implements AiClient {
             }
         }
 
+        // If hardcoded candidates fail, dynamically discover currently active models from Groq API
+        log.info("Querying Groq models catalog to dynamically discover active chat models...");
+        List<String> dynamicModels = fetchAvailableGroqModels();
+        for (String activeModel : dynamicModels) {
+            if (candidateModels.contains(activeModel)) continue;
+            try {
+                log.info("Attempting wish generation via discovered Groq model: {}", activeModel);
+                return executeGroqCall(activeModel, fullPrompt, language);
+            } catch (Exception ex) {
+                log.warn("Discovered Groq model '{}' failed: {}", activeModel, ex.getMessage());
+                lastException = ex;
+            }
+        }
+
         throw new BusinessException("Groq failed for all candidate models: " + (lastException != null ? lastException.getMessage() : "Unknown"), HttpStatus.BAD_GATEWAY);
     }
 
-    private String executeGroqCall(String targetModel, String fullPrompt, WishLanguage language) {
+    private String executeGroqCall(String targetModel, String fullPrompt, WishLanguage language) throws Exception {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put("model", targetModel);
         payload.put("temperature", 0.7);
@@ -97,17 +113,20 @@ public class GroqClientImpl implements AiClient {
 
         String url = String.format("%s/openai/v1/chat/completions", baseUrl);
 
-        JsonNode responseNode = restClient.post()
+        String responseBody = restClient.post()
                 .uri(url)
                 .header("Authorization", "Bearer " + apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON, MediaType.ALL)
                 .body(payload)
                 .retrieve()
-                .body(JsonNode.class);
+                .body(String.class);
 
-        if (responseNode == null) {
-            throw new BusinessException("Groq returned null response", HttpStatus.BAD_GATEWAY);
+        if (responseBody == null || responseBody.isBlank()) {
+            throw new BusinessException("Groq returned empty response", HttpStatus.BAD_GATEWAY);
         }
+
+        JsonNode responseNode = objectMapper.readTree(responseBody);
 
         JsonNode choice = responseNode.path("choices").get(0);
         if (choice != null && choice.has("message")) {
@@ -119,6 +138,39 @@ public class GroqClientImpl implements AiClient {
         }
 
         throw new BusinessException("Groq returned an empty response", HttpStatus.BAD_GATEWAY);
+    }
+
+    private List<String> fetchAvailableGroqModels() {
+        try {
+            String url = String.format("%s/openai/v1/models", baseUrl);
+            String resp = restClient.get()
+                    .uri(url)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .accept(MediaType.APPLICATION_JSON, MediaType.ALL)
+                    .retrieve()
+                    .body(String.class);
+
+            if (resp != null && !resp.isBlank()) {
+                JsonNode root = objectMapper.readTree(resp);
+                JsonNode data = root.path("data");
+                if (data.isArray()) {
+                    List<String> list = new ArrayList<>();
+                    for (JsonNode item : data) {
+                        String id = item.path("id").asText();
+                        if (!id.isBlank() && !id.contains("whisper") && !id.contains("tts") && !id.contains("guard") && !id.contains("embed")) {
+                            list.add(id);
+                        }
+                    }
+                    if (!list.isEmpty()) {
+                        log.info("Found {} active Groq text models: {}", list.size(), list);
+                        return list;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch dynamic Groq models list: {}", e.getMessage());
+        }
+        return Collections.emptyList();
     }
 
     private String buildPrompt(String prompt, List<String> milestones, WishLanguage language) {

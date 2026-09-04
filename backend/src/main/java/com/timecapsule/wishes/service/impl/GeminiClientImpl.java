@@ -77,7 +77,7 @@ public class GeminiClientImpl implements AiClient {
         throw new BusinessException("Gemini failed for all candidate models: " + (lastException != null ? lastException.getMessage() : "Unknown"), HttpStatus.BAD_GATEWAY);
     }
 
-    private String executeGeminiCall(String targetModel, String fullPrompt) {
+    private String executeGeminiCall(String targetModel, String fullPrompt) throws Exception {
         ObjectNode payload = objectMapper.createObjectNode();
         ArrayNode contents = payload.putArray("contents");
         ObjectNode contentItem = contents.addObject();
@@ -90,16 +90,20 @@ public class GeminiClientImpl implements AiClient {
 
         String url = String.format("%s/v1beta/models/%s:generateContent?key=%s", baseUrl, targetModel, apiKey);
 
-        JsonNode responseNode = restClient.post()
+        // Accept JSON and read response as raw String to safely handle application/octet-stream or chunked responses
+        String responseBody = restClient.post()
                 .uri(url)
                 .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON, MediaType.ALL)
                 .body(payload)
                 .retrieve()
-                .body(JsonNode.class);
+                .body(String.class);
 
-        if (responseNode == null) {
-            throw new BusinessException("Gemini returned null response", HttpStatus.BAD_GATEWAY);
+        if (responseBody == null || responseBody.isBlank()) {
+            throw new BusinessException("Gemini returned empty response body", HttpStatus.BAD_GATEWAY);
         }
+
+        JsonNode responseNode = objectMapper.readTree(responseBody);
 
         JsonNode candidate = responseNode.path("candidates").get(0);
         if (candidate != null && candidate.has("content")) {
