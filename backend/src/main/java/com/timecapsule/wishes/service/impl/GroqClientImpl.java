@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.nio.charset.StandardCharsets;
@@ -63,9 +62,13 @@ public class GroqClientImpl implements AiClient {
             try {
                 log.info("Attempting wish generation via Groq model: {}", targetModel);
                 return executeGroqCall(targetModel, fullPrompt, language);
-            } catch (HttpClientErrorException.NotFound notFoundEx) {
-                log.warn("Groq model '{}' not found (404). Trying next candidate...", targetModel);
-                lastException = notFoundEx;
+            } catch (BusinessException be) {
+                if (be.getStatus() == HttpStatus.NOT_FOUND) {
+                    log.warn("Groq model '{}' not found (404). Trying next candidate...", targetModel);
+                    lastException = be;
+                    continue;
+                }
+                throw be;
             } catch (RuntimeException ex) {
                 String msg = ex.getMessage() != null ? ex.getMessage() : "";
                 if (msg.contains("404") || msg.contains("model_decommissioned") || msg.contains("does not exist") || msg.contains("no longer supported")) {
@@ -126,7 +129,7 @@ public class GroqClientImpl implements AiClient {
                         String errorText = new String(bodyBytes, StandardCharsets.UTF_8);
                         log.warn("Groq model '{}' returned HTTP {}: {}", targetModel, response.getStatusCode(), errorText);
                         if (response.getStatusCode().value() == 404 || errorText.contains("404") || errorText.contains("does not exist") || errorText.contains("model_decommissioned")) {
-                            throw new HttpClientErrorException.NotFound("Groq model unavailable: " + errorText, response.getHeaders(), bodyBytes, StandardCharsets.UTF_8);
+                            throw new BusinessException("Groq model unavailable: " + errorText, HttpStatus.NOT_FOUND);
                         }
                         throw new BusinessException("Groq HTTP " + response.getStatusCode() + ": " + errorText, HttpStatus.BAD_GATEWAY);
                     }

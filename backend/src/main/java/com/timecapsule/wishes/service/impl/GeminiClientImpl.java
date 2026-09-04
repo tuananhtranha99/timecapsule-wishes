@@ -9,11 +9,9 @@ import com.timecapsule.wishes.exception.BusinessException;
 import com.timecapsule.wishes.service.AiClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.nio.charset.StandardCharsets;
@@ -63,9 +61,13 @@ public class GeminiClientImpl implements AiClient {
             try {
                 log.info("Attempting wish generation via Google Gemini model: {}", targetModel);
                 return executeGeminiCall(targetModel, fullPrompt);
-            } catch (HttpClientErrorException.NotFound notFoundEx) {
-                log.warn("Gemini model '{}' not found (404). Trying next candidate...", targetModel);
-                lastException = notFoundEx;
+            } catch (BusinessException be) {
+                if (be.getStatus() == HttpStatus.NOT_FOUND) {
+                    log.warn("Gemini model '{}' not found (404). Trying next candidate...", targetModel);
+                    lastException = be;
+                    continue;
+                }
+                throw be;
             } catch (RuntimeException ex) {
                 if (ex.getMessage() != null && ex.getMessage().contains("404")) {
                     log.warn("Gemini model '{}' returned 404: {}. Trying next candidate...", targetModel, ex.getMessage());
@@ -104,7 +106,7 @@ public class GeminiClientImpl implements AiClient {
                         String errorText = new String(bodyBytes, StandardCharsets.UTF_8);
                         log.warn("Gemini model '{}' returned HTTP {}: {}", targetModel, response.getStatusCode(), errorText);
                         if (response.getStatusCode().value() == 404 || errorText.contains("404") || errorText.contains("not found") || errorText.contains("no longer available")) {
-                            throw new HttpClientErrorException.NotFound("Gemini model unavailable: " + errorText, response.getHeaders(), bodyBytes, StandardCharsets.UTF_8);
+                            throw new BusinessException("Gemini model unavailable: " + errorText, HttpStatus.NOT_FOUND);
                         }
                         throw new BusinessException("Gemini HTTP " + response.getStatusCode() + ": " + errorText, HttpStatus.BAD_GATEWAY);
                     }
