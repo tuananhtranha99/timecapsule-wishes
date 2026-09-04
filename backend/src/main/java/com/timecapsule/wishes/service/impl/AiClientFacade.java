@@ -18,13 +18,16 @@ public class AiClientFacade implements AiClient {
 
     private final AiClient geminiClient;
     private final AiClient groqClient;
+    private final AiClient smartFallbackClient;
 
     public AiClientFacade(
             @Qualifier("geminiClient") AiClient geminiClient,
-            @Qualifier("groqClient") AiClient groqClient
+            @Qualifier("groqClient") AiClient groqClient,
+            @Qualifier("smartFallbackClient") AiClient smartFallbackClient
     ) {
         this.geminiClient = geminiClient;
         this.groqClient = groqClient;
+        this.smartFallbackClient = smartFallbackClient;
     }
 
     @Override
@@ -38,12 +41,17 @@ public class AiClientFacade implements AiClient {
             try {
                 return groqClient.generateWish(prompt, milestones, language);
             } catch (Exception fallbackEx) {
-                log.error("Secondary AI provider (Groq) also failed: '{}'. No more fallbacks.",
-                        fallbackEx.getMessage(), fallbackEx);
-                throw new BusinessException(
-                        "AI wish generation service is currently unavailable. Please try again later.",
-                        HttpStatus.SERVICE_UNAVAILABLE
-                );
+                log.warn("Secondary AI provider (Groq) also failed: '{}'. Falling back to Smart AI Synthesizer...",
+                        fallbackEx.getMessage());
+                try {
+                    return smartFallbackClient.generateWish(prompt, milestones, language);
+                } catch (Exception fatalEx) {
+                    log.error("All AI providers failed including smart fallback: '{}'", fatalEx.getMessage(), fatalEx);
+                    throw new BusinessException(
+                            "AI wish generation service is currently unavailable. Please try again later.",
+                            HttpStatus.SERVICE_UNAVAILABLE
+                    );
+                }
             }
         }
     }

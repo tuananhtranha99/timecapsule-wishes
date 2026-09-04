@@ -30,7 +30,7 @@ public class GroqClientImpl implements AiClient {
             RestClient restClient,
             ObjectMapper objectMapper,
             @Value("${app.ai.groq.api-key:mock-groq-key}") String apiKey,
-            @Value("${app.ai.groq.model:llama-3.1-70b-versatile}") String model,
+            @Value("${app.ai.groq.model:llama-3.3-70b-versatile}") String model,
             @Value("${app.ai.groq.base-url:https://api.groq.com}") String baseUrl
     ) {
         this.restClient = restClient;

@@ -28,6 +28,9 @@ class AiClientFacadeTest {
     @Mock
     private AiClient groqClient;
 
+    @Mock
+    private AiClient smartFallbackClient;
+
     private AiClientFacade aiClientFacade;
 
     private final String prompt = "Birthday wish for best friend";
@@ -36,7 +39,7 @@ class AiClientFacadeTest {
 
     @BeforeEach
     void setUp() {
-        aiClientFacade = new AiClientFacade(geminiClient, groqClient);
+        aiClientFacade = new AiClientFacade(geminiClient, groqClient, smartFallbackClient);
     }
 
     @Test
@@ -102,12 +105,33 @@ class AiClientFacadeTest {
     }
 
     @Test
-    @DisplayName("Should throw BusinessException with 503 when both Gemini and Groq fail")
-    void testGenerateWish_BothFail_ThrowsServiceUnavailable() {
+    @DisplayName("Should fallback to Smart AI Synthesizer when both Gemini and Groq fail")
+    void testGenerateWish_GeminiAndGroqFail_FallsBackToSmartSynthesizer() {
         when(geminiClient.generateWish(prompt, milestones, language))
                 .thenThrow(new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR, "Gemini failed"));
         when(groqClient.generateWish(prompt, milestones, language))
                 .thenThrow(new HttpServerErrorException(HttpStatus.BAD_GATEWAY, "Groq failed"));
+        when(smartFallbackClient.generateWish(prompt, milestones, language))
+                .thenReturn("Lời chúc cảm động từ Smart AI Synthesizer!");
+
+        String result = aiClientFacade.generateWish(prompt, milestones, language);
+
+        assertNotNull(result);
+        assertTrue(result.contains("Smart AI Synthesizer"));
+        verify(geminiClient).generateWish(prompt, milestones, language);
+        verify(groqClient).generateWish(prompt, milestones, language);
+        verify(smartFallbackClient).generateWish(prompt, milestones, language);
+    }
+
+    @Test
+    @DisplayName("Should throw BusinessException with 503 only when all providers including fallback fail")
+    void testGenerateWish_AllFail_ThrowsServiceUnavailable() {
+        when(geminiClient.generateWish(prompt, milestones, language))
+                .thenThrow(new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR, "Gemini failed"));
+        when(groqClient.generateWish(prompt, milestones, language))
+                .thenThrow(new HttpServerErrorException(HttpStatus.BAD_GATEWAY, "Groq failed"));
+        when(smartFallbackClient.generateWish(prompt, milestones, language))
+                .thenThrow(new RuntimeException("Fatal error"));
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> aiClientFacade.generateWish(prompt, milestones, language));
@@ -116,5 +140,6 @@ class AiClientFacadeTest {
         assertTrue(exception.getMessage().contains("AI wish generation service is currently unavailable"));
         verify(geminiClient).generateWish(prompt, milestones, language);
         verify(groqClient).generateWish(prompt, milestones, language);
+        verify(smartFallbackClient).generateWish(prompt, milestones, language);
     }
 }
