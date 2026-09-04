@@ -19,10 +19,12 @@ import type {
   GeneratedWish,
   OccasionType,
   WishLanguage,
+  ToneStyle,
   ApiResponse
 } from '../../types';
 
 const OCCASIONS: OccasionType[] = ['BIRTHDAY', 'TET', 'ANNIVERSARY', 'CUSTOM'];
+const TONES: ToneStyle[] = ['WARM', 'SWEET', 'PLAYFUL', 'RESPECTFUL', 'CASUAL'];
 
 export const GenerateWishPage: React.FC = () => {
   const { recipientId } = useParams<{ recipientId: string }>();
@@ -36,6 +38,9 @@ export const GenerateWishPage: React.FC = () => {
   const [language, setLanguage] = useState<WishLanguage>(
     i18n.language === 'en' ? 'EN' : 'VI'
   );
+  const [pronounSelf, setPronounSelf] = useState('');
+  const [pronounRecipient, setPronounRecipient] = useState('');
+  const [toneStyle, setToneStyle] = useState<ToneStyle>('WARM');
   const [customPrompt, setCustomPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentWish, setCurrentWish] = useState<GeneratedWish | null>(null);
@@ -102,6 +107,9 @@ export const GenerateWishPage: React.FC = () => {
         milestoneIds: selectedMilestoneIds,
         occasionType,
         language,
+        pronounSelf: pronounSelf.trim() || null,
+        pronounRecipient: pronounRecipient.trim() || null,
+        toneStyle,
         customPrompt: customPrompt.trim() || null,
       });
 
@@ -312,6 +320,55 @@ export const GenerateWishPage: React.FC = () => {
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Pronouns */}
+            <div style={{ marginTop: '1rem' }}>
+              <label className="form-label" style={{ marginBottom: '0.4rem', display: 'block' }}>
+                {t('wishes.pronouns')}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '0.25rem', display: 'block' }}>
+                    {t('wishes.pronounSelf')}
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={pronounSelf}
+                    onChange={(e) => setPronounSelf(e.target.value)}
+                    placeholder={t('wishes.pronounSelfPlaceholder')}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '0.25rem', display: 'block' }}>
+                    {t('wishes.pronounRecipient')}
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={pronounRecipient}
+                    onChange={(e) => setPronounRecipient(e.target.value)}
+                    placeholder={t('wishes.pronounRecipientPlaceholder')}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Tone Style */}
+            <div className="form-group" style={{ marginTop: '1rem' }}>
+              <label className="form-label">{t('wishes.toneStyle')}</label>
+              <select
+                className="form-select"
+                value={toneStyle}
+                onChange={(e) => setToneStyle(e.target.value as ToneStyle)}
+              >
+                {TONES.map((tone) => (
+                  <option key={tone} value={tone}>
+                    {t(`wishes.tones.${tone}`)}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Custom Prompt */}

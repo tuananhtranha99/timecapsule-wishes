@@ -1,6 +1,7 @@
 package com.timecapsule.wishes.dto.request;
 
 import com.timecapsule.wishes.enums.OccasionType;
+import com.timecapsule.wishes.enums.ToneStyle;
 import com.timecapsule.wishes.enums.WishLanguage;
 import jakarta.validation.constraints.NotNull;
 
@@ -19,6 +20,21 @@ public record GenerateWishRequest(
         @NotNull(message = "Language is required")
         WishLanguage language,
 
-        String customPrompt
+        String customPrompt,
+
+        String pronounSelf,
+
+        String pronounRecipient,
+
+        ToneStyle toneStyle
 ) {
+    public GenerateWishRequest(
+            UUID recipientId,
+            List<UUID> milestoneIds,
+            OccasionType occasionType,
+            WishLanguage language,
+            String customPrompt
+    ) {
+        this(recipientId, milestoneIds, occasionType, language, customPrompt, null, null, null);
+    }
 }

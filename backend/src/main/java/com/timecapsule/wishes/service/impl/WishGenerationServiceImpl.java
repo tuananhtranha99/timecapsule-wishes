@@ -55,8 +55,14 @@ public class WishGenerationServiceImpl implements WishGenerationService {
 
         StringBuilder contextBuilder = new StringBuilder();
         contextBuilder.append("Người nhận: ").append(recipient.getName());
-        if (recipient.getRelationship() != null && !recipient.getRelationship().isBlank()) {
-            contextBuilder.append(" (Mối quan hệ: ").append(recipient.getRelationship()).append(")");
+        if (request.pronounSelf() != null && !request.pronounSelf().isBlank()) {
+            contextBuilder.append(". Xưng: ").append(request.pronounSelf().trim());
+        }
+        if (request.pronounRecipient() != null && !request.pronounRecipient().isBlank()) {
+            contextBuilder.append(". Hô: ").append(request.pronounRecipient().trim());
+        }
+        if (request.toneStyle() != null) {
+            contextBuilder.append(". Giọng điệu: ").append(request.toneStyle().name());
         }
         if (recipient.getNotes() != null && !recipient.getNotes().isBlank()) {
             contextBuilder.append(". Ghi chú cá nhân: ").append(recipient.getNotes());

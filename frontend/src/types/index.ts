@@ -1,6 +1,7 @@
 export type MilestoneCategory = 'CAREER' | 'TRAVEL' | 'HEALTH' | 'RELATIONSHIP' | 'ACHIEVEMENT' | 'OTHER';
 export type OccasionType = 'BIRTHDAY' | 'TET' | 'ANNIVERSARY' | 'CUSTOM';
 export type WishLanguage = 'VI' | 'EN';
+export type ToneStyle = 'SWEET' | 'PLAYFUL' | 'WARM' | 'RESPECTFUL' | 'CASUAL';
 
 export interface User {
   id: string;

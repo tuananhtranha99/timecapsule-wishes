@@ -77,8 +77,21 @@
       "CUSTOM": "Dịp đặc biệt khác"
     },
     "language": "Ngôn ngữ lời chúc",
-    "customPrompt": "Gợi ý / Phong cách mong muốn (tùy chọn)",
-    "customPromptPlaceholder": "Ví dụ: Giọng điệu ấm áp, hài hước, nhắc nhớ chuyện đi chơi...",
+    "pronouns": "Cách xưng hô",
+    "pronounSelf": "Bạn xưng là gì?",
+    "pronounSelfPlaceholder": "Ví dụ: anh, em, mình, tớ, tôi, con...",
+    "pronounRecipient": "Bạn gọi người đó là gì?",
+    "pronounRecipientPlaceholder": "Ví dụ: em, anh, bạn, cậu, sếp, mẹ...",
+    "toneStyle": "Giọng điệu lời chúc",
+    "tones": {
+      "WARM": "Ấm áp, chân thành",
+      "SWEET": "Ngọt ngào, tình cảm",
+      "PLAYFUL": "Vui tươi, hài hước",
+      "RESPECTFUL": "Kính trọng, trang nghiêm",
+      "CASUAL": "Thoải mái, gần gũi"
+    },
+    "customPrompt": "Gợi ý thêm cho AI (tùy chọn)",
+    "customPromptPlaceholder": "Ví dụ: nhắc thêm kỷ niệm đi chơi hè vừa rồi...",
     "generateBtn": "Tạo lời chúc ngay",
     "generating": "AI đang sáng tạo lời chúc cá nhân hóa...",
     "resultTitle": "Lời chúc được tạo cho bạn",

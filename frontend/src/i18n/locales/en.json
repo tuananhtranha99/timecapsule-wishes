@@ -77,8 +77,21 @@
       "CUSTOM": "Special Occasion"
     },
     "language": "Wish Language",
-    "customPrompt": "Additional Context / Desired Tone (Optional)",
-    "customPromptPlaceholder": "E.g. Warm and humorous, mention the marathon trip...",
+    "pronouns": "Pronouns / Addressing",
+    "pronounSelf": "How you address yourself",
+    "pronounSelfPlaceholder": "E.g. I, bro, me...",
+    "pronounRecipient": "How you address recipient",
+    "pronounRecipientPlaceholder": "E.g. you, babe, bro, mom...",
+    "toneStyle": "Wish Tone",
+    "tones": {
+      "WARM": "Warm & Sincere",
+      "SWEET": "Sweet & Romantic",
+      "PLAYFUL": "Playful & Funny",
+      "RESPECTFUL": "Formal & Respectful",
+      "CASUAL": "Casual & Chill"
+    },
+    "customPrompt": "Additional Context / AI Guidance (Optional)",
+    "customPromptPlaceholder": "E.g. mention the summer trip memory...",
     "generateBtn": "Generate Wish",
     "generating": "AI is synthesizing your personalized wish...",
     "resultTitle": "Your Personalized Wish",
