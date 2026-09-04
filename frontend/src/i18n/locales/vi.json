@@ -24,7 +24,8 @@
     "haveAccount": "Đã có tài khoản?",
     "loginSuccess": "Đăng nhập thành công!",
     "registerSuccess": "Đăng ký tài khoản thành công!",
-    "logoutSuccess": "Đã đăng xuất"
+    "logoutSuccess": "Đã đăng xuất",
+    "invalidCredentials": "Email hoặc mật khẩu không chính xác"
   },
   "recipients": {
     "title": "Danh sách người nhận",

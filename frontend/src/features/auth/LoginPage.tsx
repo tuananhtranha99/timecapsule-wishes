@@ -31,7 +31,7 @@ export const LoginPage: React.FC = () => {
       navigate('/recipients');
     } catch (err: any) {
       if (err.response?.status === 401) {
-        setErrorMsg(t('auth.loginSubtitle') || 'Invalid email or password');
+        setErrorMsg(t('auth.invalidCredentials'));
       } else if (err.response?.data?.message) {
         setErrorMsg(err.response.data.message);
       } else {

@@ -24,7 +24,8 @@
     "haveAccount": "Already have an account?",
     "loginSuccess": "Login successful!",
     "registerSuccess": "Account created successfully!",
-    "logoutSuccess": "Logged out successfully"
+    "logoutSuccess": "Logged out successfully",
+    "invalidCredentials": "Invalid email or password"
   },
   "recipients": {
     "title": "Your Recipients",
