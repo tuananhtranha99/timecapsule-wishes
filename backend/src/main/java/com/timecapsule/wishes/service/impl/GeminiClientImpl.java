@@ -9,12 +9,14 @@ import com.timecapsule.wishes.exception.BusinessException;
 import com.timecapsule.wishes.service.AiClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -90,18 +92,30 @@ public class GeminiClientImpl implements AiClient {
 
         String url = String.format("%s/v1beta/models/%s:generateContent?key=%s", baseUrl, targetModel, apiKey);
 
-        // Accept JSON and read response as raw String to safely handle application/octet-stream or chunked responses
-        String responseBody = restClient.post()
+        // Use exchange to directly read raw byte stream, completely immune to any content-type (application/octet-stream, text/plain, etc.)
+        byte[] bytes = restClient.post()
                 .uri(url)
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON, MediaType.ALL)
                 .body(payload)
-                .retrieve()
-                .body(String.class);
+                .exchange((request, response) -> {
+                    byte[] bodyBytes = response.getBody().readAllBytes();
+                    if (response.getStatusCode().isError()) {
+                        String errorText = new String(bodyBytes, StandardCharsets.UTF_8);
+                        log.warn("Gemini model '{}' returned HTTP {}: {}", targetModel, response.getStatusCode(), errorText);
+                        if (response.getStatusCode().value() == 404 || errorText.contains("404") || errorText.contains("not found") || errorText.contains("no longer available")) {
+                            throw new HttpClientErrorException.NotFound("Gemini model unavailable: " + errorText, response.getHeaders(), bodyBytes, StandardCharsets.UTF_8);
+                        }
+                        throw new BusinessException("Gemini HTTP " + response.getStatusCode() + ": " + errorText, HttpStatus.BAD_GATEWAY);
+                    }
+                    return bodyBytes;
+                });
 
-        if (responseBody == null || responseBody.isBlank()) {
+        if (bytes == null || bytes.length == 0) {
             throw new BusinessException("Gemini returned empty response body", HttpStatus.BAD_GATEWAY);
         }
+
+        String responseBody = new String(bytes, StandardCharsets.UTF_8);
 
         JsonNode responseNode;
         try {

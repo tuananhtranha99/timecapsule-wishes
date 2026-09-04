@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -67,7 +68,7 @@ public class GroqClientImpl implements AiClient {
                 lastException = notFoundEx;
             } catch (RuntimeException ex) {
                 String msg = ex.getMessage() != null ? ex.getMessage() : "";
-                if (msg.contains("404") || msg.contains("model_decommissioned") || msg.contains("does not exist")) {
+                if (msg.contains("404") || msg.contains("model_decommissioned") || msg.contains("does not exist") || msg.contains("no longer supported")) {
                     log.warn("Groq model '{}' unavailable: {}. Trying next candidate...", targetModel, msg);
                     lastException = ex;
                     continue;
@@ -113,18 +114,30 @@ public class GroqClientImpl implements AiClient {
 
         String url = String.format("%s/openai/v1/chat/completions", baseUrl);
 
-        String responseBody = restClient.post()
+        byte[] bytes = restClient.post()
                 .uri(url)
                 .header("Authorization", "Bearer " + apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON, MediaType.ALL)
                 .body(payload)
-                .retrieve()
-                .body(String.class);
+                .exchange((request, response) -> {
+                    byte[] bodyBytes = response.getBody().readAllBytes();
+                    if (response.getStatusCode().isError()) {
+                        String errorText = new String(bodyBytes, StandardCharsets.UTF_8);
+                        log.warn("Groq model '{}' returned HTTP {}: {}", targetModel, response.getStatusCode(), errorText);
+                        if (response.getStatusCode().value() == 404 || errorText.contains("404") || errorText.contains("does not exist") || errorText.contains("model_decommissioned")) {
+                            throw new HttpClientErrorException.NotFound("Groq model unavailable: " + errorText, response.getHeaders(), bodyBytes, StandardCharsets.UTF_8);
+                        }
+                        throw new BusinessException("Groq HTTP " + response.getStatusCode() + ": " + errorText, HttpStatus.BAD_GATEWAY);
+                    }
+                    return bodyBytes;
+                });
 
-        if (responseBody == null || responseBody.isBlank()) {
+        if (bytes == null || bytes.length == 0) {
             throw new BusinessException("Groq returned empty response", HttpStatus.BAD_GATEWAY);
         }
+
+        String responseBody = new String(bytes, StandardCharsets.UTF_8);
 
         JsonNode responseNode;
         try {
@@ -148,14 +161,14 @@ public class GroqClientImpl implements AiClient {
     private List<String> fetchAvailableGroqModels() {
         try {
             String url = String.format("%s/openai/v1/models", baseUrl);
-            String resp = restClient.get()
+            byte[] bytes = restClient.get()
                     .uri(url)
                     .header("Authorization", "Bearer " + apiKey)
                     .accept(MediaType.APPLICATION_JSON, MediaType.ALL)
-                    .retrieve()
-                    .body(String.class);
+                    .exchange((request, response) -> response.getBody().readAllBytes());
 
-            if (resp != null && !resp.isBlank()) {
+            if (bytes != null && bytes.length > 0) {
+                String resp = new String(bytes, StandardCharsets.UTF_8);
                 JsonNode root = objectMapper.readTree(resp);
                 JsonNode data = root.path("data");
                 if (data.isArray()) {
