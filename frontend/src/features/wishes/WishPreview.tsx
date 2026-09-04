@@ -18,6 +18,22 @@ export const WishPreview: React.FC<WishPreviewProps> = ({ wish, onWishUpdated })
 
   const displayText = wish.editedText || wish.generatedText;
 
+  // Keep editedText and editing state in sync whenever the active wish changes
+  React.useEffect(() => {
+    setEditedText(wish.editedText || wish.generatedText);
+    setIsEditing(false);
+  }, [wish.id, wish.editedText, wish.generatedText]);
+
+  const handleStartEdit = () => {
+    setEditedText(wish.editedText || wish.generatedText);
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditedText(wish.editedText || wish.generatedText);
+    setIsEditing(false);
+  };
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(displayText);
@@ -117,7 +133,7 @@ export const WishPreview: React.FC<WishPreviewProps> = ({ wish, onWishUpdated })
             onChange={(e) => setEditedText(e.target.value)}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.75rem' }}>
-            <button onClick={() => setIsEditing(false)} className="btn btn-secondary">
+            <button onClick={handleCancelEdit} className="btn btn-secondary">
               {t('common.cancel')}
             </button>
             <button onClick={handleSaveRevision} className="btn btn-primary" disabled={isSaving}>
@@ -150,7 +166,7 @@ export const WishPreview: React.FC<WishPreviewProps> = ({ wish, onWishUpdated })
       {!isEditing && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
           <button
-            onClick={() => setIsEditing(true)}
+            onClick={handleStartEdit}
             className="btn btn-secondary"
             style={{ padding: '0.6rem 1rem' }}
           >

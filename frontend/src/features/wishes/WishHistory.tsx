@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { History, Copy, Check, Calendar, GitCommit } from 'lucide-react';
+import { History, Copy, Check, Calendar, GitCommit, Pencil } from 'lucide-react';
 import type { GeneratedWish } from '../../types';
 
 interface WishHistoryProps {
   wishes: GeneratedWish[];
+  onSelectWish?: (wish: GeneratedWish) => void;
 }
 
-export const WishHistory: React.FC<WishHistoryProps> = ({ wishes }) => {
+export const WishHistory: React.FC<WishHistoryProps> = ({ wishes, onSelectWish }) => {
   const { t } = useTranslation();
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -79,7 +80,17 @@ export const WishHistory: React.FC<WishHistoryProps> = ({ wishes }) => {
                   {text}
                 </p>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                  {onSelectWish && (
+                    <button
+                      onClick={() => onSelectWish(w)}
+                      className="btn btn-secondary"
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', gap: '0.35rem' }}
+                    >
+                      <Pencil size={13} />
+                      <span>{t('wishes.editBtn')}</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => handleCopy(w.id, text)}
                     className="btn btn-secondary"

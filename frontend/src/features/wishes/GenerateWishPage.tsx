@@ -413,12 +413,18 @@ export const GenerateWishPage: React.FC = () => {
                 <Sparkles size={20} color="#ec4899" />
                 <h2>{t('wishes.resultTitle')}</h2>
               </div>
-              <WishPreview wish={currentWish} onWishUpdated={handleWishUpdated} />
+              <WishPreview key={currentWish.id} wish={currentWish} onWishUpdated={handleWishUpdated} />
             </div>
           )}
 
           {/* Past Wishes History */}
-          <WishHistory wishes={wishHistory} />
+          <WishHistory
+            wishes={wishHistory}
+            onSelectWish={(w) => {
+              setCurrentWish(w);
+              window.scrollTo({ top: 320, behavior: 'smooth' });
+            }}
+          />
         </div>
       </div>
     </div>
