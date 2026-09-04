@@ -64,7 +64,7 @@ public class GeminiClientImpl implements AiClient {
             } catch (HttpClientErrorException.NotFound notFoundEx) {
                 log.warn("Gemini model '{}' not found (404). Trying next candidate...", targetModel);
                 lastException = notFoundEx;
-            } catch (Exception ex) {
+            } catch (RuntimeException ex) {
                 if (ex.getMessage() != null && ex.getMessage().contains("404")) {
                     log.warn("Gemini model '{}' returned 404: {}. Trying next candidate...", targetModel, ex.getMessage());
                     lastException = ex;
@@ -77,7 +77,7 @@ public class GeminiClientImpl implements AiClient {
         throw new BusinessException("Gemini failed for all candidate models: " + (lastException != null ? lastException.getMessage() : "Unknown"), HttpStatus.BAD_GATEWAY);
     }
 
-    private String executeGeminiCall(String targetModel, String fullPrompt) throws Exception {
+    private String executeGeminiCall(String targetModel, String fullPrompt) {
         ObjectNode payload = objectMapper.createObjectNode();
         ArrayNode contents = payload.putArray("contents");
         ObjectNode contentItem = contents.addObject();
@@ -103,7 +103,12 @@ public class GeminiClientImpl implements AiClient {
             throw new BusinessException("Gemini returned empty response body", HttpStatus.BAD_GATEWAY);
         }
 
-        JsonNode responseNode = objectMapper.readTree(responseBody);
+        JsonNode responseNode;
+        try {
+            responseNode = objectMapper.readTree(responseBody);
+        } catch (Exception e) {
+            throw new BusinessException("Failed to parse Gemini response: " + e.getMessage(), HttpStatus.BAD_GATEWAY);
+        }
 
         JsonNode candidate = responseNode.path("candidates").get(0);
         if (candidate != null && candidate.has("content")) {

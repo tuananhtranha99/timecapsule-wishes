@@ -65,7 +65,7 @@ public class GroqClientImpl implements AiClient {
             } catch (HttpClientErrorException.NotFound notFoundEx) {
                 log.warn("Groq model '{}' not found (404). Trying next candidate...", targetModel);
                 lastException = notFoundEx;
-            } catch (Exception ex) {
+            } catch (RuntimeException ex) {
                 String msg = ex.getMessage() != null ? ex.getMessage() : "";
                 if (msg.contains("404") || msg.contains("model_decommissioned") || msg.contains("does not exist")) {
                     log.warn("Groq model '{}' unavailable: {}. Trying next candidate...", targetModel, msg);
@@ -93,7 +93,7 @@ public class GroqClientImpl implements AiClient {
         throw new BusinessException("Groq failed for all candidate models: " + (lastException != null ? lastException.getMessage() : "Unknown"), HttpStatus.BAD_GATEWAY);
     }
 
-    private String executeGroqCall(String targetModel, String fullPrompt, WishLanguage language) throws Exception {
+    private String executeGroqCall(String targetModel, String fullPrompt, WishLanguage language) {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put("model", targetModel);
         payload.put("temperature", 0.7);
@@ -126,7 +126,12 @@ public class GroqClientImpl implements AiClient {
             throw new BusinessException("Groq returned empty response", HttpStatus.BAD_GATEWAY);
         }
 
-        JsonNode responseNode = objectMapper.readTree(responseBody);
+        JsonNode responseNode;
+        try {
+            responseNode = objectMapper.readTree(responseBody);
+        } catch (Exception e) {
+            throw new BusinessException("Failed to parse Groq response: " + e.getMessage(), HttpStatus.BAD_GATEWAY);
+        }
 
         JsonNode choice = responseNode.path("choices").get(0);
         if (choice != null && choice.has("message")) {
