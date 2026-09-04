@@ -12,8 +12,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Component("groqClient")
@@ -30,7 +32,7 @@ public class GroqClientImpl implements AiClient {
             RestClient restClient,
             ObjectMapper objectMapper,
             @Value("${app.ai.groq.api-key:mock-groq-key}") String apiKey,
-            @Value("${app.ai.groq.model:llama-3.3-70b-versatile}") String model,
+            @Value("${app.ai.groq.model:llama-3.1-8b-instant}") String model,
             @Value("${app.ai.groq.base-url:https://api.groq.com}") String baseUrl
     ) {
         this.restClient = restClient;
@@ -42,11 +44,42 @@ public class GroqClientImpl implements AiClient {
 
     @Override
     public String generateWish(String prompt, List<String> milestones, WishLanguage language) {
-        log.info("Generating wish via Groq fallback model: {}", model);
         String fullPrompt = buildPrompt(prompt, milestones, language);
 
+        List<String> candidateModels = new ArrayList<>();
+        if (model != null && !model.isBlank()) {
+            candidateModels.add(model.trim());
+        }
+        for (String m : List.of("llama-3.1-8b-instant", "llama-3.3-70b-versatile", "mixtral-8x7b-32768")) {
+            if (!candidateModels.contains(m)) {
+                candidateModels.add(m);
+            }
+        }
+
+        Exception lastException = null;
+        for (String targetModel : candidateModels) {
+            try {
+                log.info("Attempting wish generation via Groq model: {}", targetModel);
+                return executeGroqCall(targetModel, fullPrompt, language);
+            } catch (HttpClientErrorException.NotFound notFoundEx) {
+                log.warn("Groq model '{}' not found (404). Trying next candidate...", targetModel);
+                lastException = notFoundEx;
+            } catch (Exception ex) {
+                if (ex.getMessage() != null && ex.getMessage().contains("404")) {
+                    log.warn("Groq model '{}' returned 404: {}. Trying next candidate...", targetModel, ex.getMessage());
+                    lastException = ex;
+                    continue;
+                }
+                throw ex;
+            }
+        }
+
+        throw new BusinessException("Groq failed for all candidate models: " + (lastException != null ? lastException.getMessage() : "Unknown"), HttpStatus.BAD_GATEWAY);
+    }
+
+    private String executeGroqCall(String targetModel, String fullPrompt, WishLanguage language) {
         ObjectNode payload = objectMapper.createObjectNode();
-        payload.put("model", model);
+        payload.put("model", targetModel);
         payload.put("temperature", 0.7);
         payload.put("max_tokens", 1000);
 
@@ -80,7 +113,7 @@ public class GroqClientImpl implements AiClient {
         if (choice != null && choice.has("message")) {
             String wishText = choice.path("message").path("content").asText().trim();
             if (!wishText.isBlank()) {
-                log.info("Wish successfully generated via Groq (length: {})", wishText.length());
+                log.info("Wish successfully generated via Groq model {} (length: {})", targetModel, wishText.length());
                 return wishText;
             }
         }

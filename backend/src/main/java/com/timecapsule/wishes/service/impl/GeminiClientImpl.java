@@ -12,8 +12,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Component("geminiClient")
@@ -30,7 +32,7 @@ public class GeminiClientImpl implements AiClient {
             RestClient restClient,
             ObjectMapper objectMapper,
             @Value("${app.ai.gemini.api-key:mock-gemini-key}") String apiKey,
-            @Value("${app.ai.gemini.model:gemini-2.0-flash}") String model,
+            @Value("${app.ai.gemini.model:gemini-3.6-flash}") String model,
             @Value("${app.ai.gemini.base-url:https://generativelanguage.googleapis.com}") String baseUrl
     ) {
         this.restClient = restClient;
@@ -42,9 +44,40 @@ public class GeminiClientImpl implements AiClient {
 
     @Override
     public String generateWish(String prompt, List<String> milestones, WishLanguage language) {
-        log.info("Generating wish via Google Gemini model: {}", model);
         String fullPrompt = buildPrompt(prompt, milestones, language);
 
+        List<String> candidateModels = new ArrayList<>();
+        if (model != null && !model.isBlank()) {
+            candidateModels.add(model.trim());
+        }
+        for (String m : List.of("gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash")) {
+            if (!candidateModels.contains(m)) {
+                candidateModels.add(m);
+            }
+        }
+
+        Exception lastException = null;
+        for (String targetModel : candidateModels) {
+            try {
+                log.info("Attempting wish generation via Google Gemini model: {}", targetModel);
+                return executeGeminiCall(targetModel, fullPrompt);
+            } catch (HttpClientErrorException.NotFound notFoundEx) {
+                log.warn("Gemini model '{}' not found (404). Trying next candidate...", targetModel);
+                lastException = notFoundEx;
+            } catch (Exception ex) {
+                if (ex.getMessage() != null && ex.getMessage().contains("404")) {
+                    log.warn("Gemini model '{}' returned 404: {}. Trying next candidate...", targetModel, ex.getMessage());
+                    lastException = ex;
+                    continue;
+                }
+                throw ex;
+            }
+        }
+
+        throw new BusinessException("Gemini failed for all candidate models: " + (lastException != null ? lastException.getMessage() : "Unknown"), HttpStatus.BAD_GATEWAY);
+    }
+
+    private String executeGeminiCall(String targetModel, String fullPrompt) {
         ObjectNode payload = objectMapper.createObjectNode();
         ArrayNode contents = payload.putArray("contents");
         ObjectNode contentItem = contents.addObject();
@@ -55,7 +88,7 @@ public class GeminiClientImpl implements AiClient {
         generationConfig.put("temperature", 0.7);
         generationConfig.put("maxOutputTokens", 1000);
 
-        String url = String.format("%s/v1beta/models/%s:generateContent?key=%s", baseUrl, model, apiKey);
+        String url = String.format("%s/v1beta/models/%s:generateContent?key=%s", baseUrl, targetModel, apiKey);
 
         JsonNode responseNode = restClient.post()
                 .uri(url)
@@ -74,7 +107,7 @@ public class GeminiClientImpl implements AiClient {
             if (candidateParts.isArray() && !candidateParts.isEmpty()) {
                 String wishText = candidateParts.get(0).path("text").asText().trim();
                 if (!wishText.isBlank()) {
-                    log.info("Wish successfully generated via Gemini (length: {})", wishText.length());
+                    log.info("Wish successfully generated via Gemini model {} (length: {})", targetModel, wishText.length());
                     return wishText;
                 }
             }

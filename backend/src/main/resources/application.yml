@@ -54,10 +54,10 @@ app:
   ai:
     gemini:
       api-key: "${GEMINI_API_KEY:mock-gemini-key}"
-      model: "${GEMINI_MODEL:gemini-2.0-flash}"
+      model: "${GEMINI_MODEL:gemini-3.6-flash}"
     groq:
       api-key: "${GROQ_API_KEY:mock-groq-key}"
-      model: "${GROQ_MODEL:llama-3.3-70b-versatile}"
+      model: "${GROQ_MODEL:llama-3.1-8b-instant}"
   cors:
     allowed-origins: "${CORS_ALLOWED_ORIGINS:http://localhost:5173}"
 
@@ -96,9 +96,9 @@ app:
   ai:
     gemini:
       api-key: ${GEMINI_API_KEY}
-      model: ${GEMINI_MODEL:gemini-2.0-flash}
+      model: ${GEMINI_MODEL:gemini-3.6-flash}
     groq:
       api-key: ${GROQ_API_KEY}
-      model: ${GROQ_MODEL:llama-3.3-70b-versatile}
+      model: ${GROQ_MODEL:llama-3.1-8b-instant}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
