@@ -2,7 +2,18 @@ import axios, { AxiosError } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse, AuthResponse } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+const normalizeApiBaseUrl = (rawUrl?: string): string => {
+  let url = (rawUrl || 'http://localhost:8080/api/v1').trim();
+  // Strip trailing slashes
+  url = url.replace(/\/+$/, '');
+  // If the user forgot /api/v1, append it automatically
+  if (!url.endsWith('/api/v1')) {
+    url = `${url}/api/v1`;
+  }
+  return url;
+};
+
+const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -13,9 +24,13 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('accessToken');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Do not attach token for public auth endpoints (login and register)
+    const isAuthRoute = config.url?.includes('/auth/login') || config.url?.includes('/auth/register');
+    if (!isAuthRoute) {
+      const token = localStorage.getItem('accessToken');
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
