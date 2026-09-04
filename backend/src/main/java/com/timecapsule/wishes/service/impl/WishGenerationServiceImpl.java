@@ -46,12 +46,19 @@ public class WishGenerationServiceImpl implements WishGenerationService {
             selectedMilestones = milestoneRepository.findAllByIdInAndRecipientUserId(request.milestoneIds(), principal.getId())
                     .stream()
                     .filter(m -> m.getRecipient().getId().equals(recipient.getId()))
+                    .sorted((m1, m2) -> {
+                        if (m1.getOccurredAt() == null && m2.getOccurredAt() == null) return 0;
+                        if (m1.getOccurredAt() == null) return 1;
+                        if (m2.getOccurredAt() == null) return -1;
+                        return m1.getOccurredAt().compareTo(m2.getOccurredAt());
+                    })
                     .toList();
         }
 
         List<String> milestoneDescriptions = selectedMilestones.stream()
-                .map(m -> String.format("%s (ngày %s, danh mục %s)",
-                        m.getDescription(), m.getOccurredAt(), m.getCategory()))
+                .map(Milestone::getDescription)
+                .filter(desc -> desc != null && !desc.isBlank())
+                .map(String::trim)
                 .toList();
 
         StringBuilder contextBuilder = new StringBuilder();

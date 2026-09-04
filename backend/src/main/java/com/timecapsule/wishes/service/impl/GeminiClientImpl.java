@@ -17,6 +17,8 @@ import org.springframework.web.client.RestClient;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component("geminiClient")
 @Slf4j
@@ -75,6 +77,9 @@ public class GeminiClientImpl implements AiClient {
                     continue;
                 }
                 throw ex;
+            } catch (Exception ex) {
+                log.warn("Gemini model '{}' failed: {}. Trying next candidate...", targetModel, ex.getMessage());
+                lastException = ex;
             }
         }
 
@@ -94,7 +99,6 @@ public class GeminiClientImpl implements AiClient {
 
         String url = String.format("%s/v1beta/models/%s:generateContent?key=%s", baseUrl, targetModel, apiKey);
 
-        // Use exchange to directly read raw byte stream, completely immune to any content-type (application/octet-stream, text/plain, etc.)
         byte[] bytes = restClient.post()
                 .uri(url)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -137,7 +141,7 @@ public class GeminiClientImpl implements AiClient {
                 StringBuilder wishBuilder = new StringBuilder();
                 for (JsonNode partNode : candidateParts) {
                     if (partNode.has("thought") && partNode.get("thought").asBoolean()) {
-                        continue; // Skip thinking tokens in Gemini reasoning models
+                        continue;
                     }
                     String partText = partNode.path("text").asText("");
                     if (!partText.isEmpty()) {
@@ -156,52 +160,147 @@ public class GeminiClientImpl implements AiClient {
         throw new BusinessException("Gemini returned an empty response", HttpStatus.BAD_GATEWAY);
     }
 
+    private String extractField(String text, String regex, String defaultValue) {
+        if (text == null) return defaultValue;
+        Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(text);
+        if (matcher.find()) {
+            return matcher.group(1).trim();
+        }
+        return defaultValue;
+    }
+
     private String buildPrompt(String prompt, List<String> milestones, WishLanguage language) {
+        String recipientName = extractField(prompt, "Người nhận:\\s*([^.(,\n]+)", "bạn");
+        String pronounSelf = extractField(prompt, "(?:Xưng|Xưng hô):\\s*([^.(,\n]+)", "");
+        String pronounRecipient = extractField(prompt, "(?:Hô):\\s*([^.(,\n]+)", "");
+        String occasion = extractField(prompt, "Dịp:\\s*([^.,\n]+)", language == WishLanguage.EN ? "Birthday" : "Sinh nhật");
+        String tone = extractField(prompt, "Giọng điệu:\\s*([^.,\n]+)", language == WishLanguage.EN ? "Warm & Heartfelt" : "Ấm áp, chân thành");
+        String notes = extractField(prompt, "Ghi chú cá nhân:\\s*([^.\n]+)", "");
+        String customReq = extractField(prompt, "Yêu cầu bổ sung:\\s*([^\n]+)", "");
+
         StringBuilder sb = new StringBuilder();
+
         if (language == WishLanguage.VI) {
-            sb.append("Bạn là người viết lời chúc chân thành, sâu sắc và tinh tế.\n");
-            sb.append("Hãy tạo một lời chúc hoàn chỉnh, ý nghĩa, có độ dài vừa vặn (khoảng 150 đến 250 từ, chia làm 2 đến 3 đoạn văn ngắn gọn, súc tích). ");
-            sb.append("Tuyệt đối không viết lan man dài dòng, nhưng bắt buộc phải viết trọn vẹn từ mở đầu, thân bài điểm lại các cột mốc đến lời chúc kết thúc, tuyệt đối không được bỏ lửng hay ngắt cụt câu giữa chừng.\n\n");
-        } else {
-            sb.append("You are a thoughtful, authentic, and caring wish writer.\n");
-            sb.append("Create a complete, meaningful, and well-proportioned wish (around 150 to 250 words, formatted in 2 to 3 concise paragraphs). ");
-            sb.append("Avoid unnecessary fluff, but ensure the wish is complete, heartfelt, and never abruptly cut off.\n\n");
-        }
+            sb.append("Bạn là một chuyên gia viết lời chúc cá nhân hóa hàng đầu, sâu sắc, tinh tế và dạt dào tình cảm chân thành.\n");
+            sb.append("Nhiệm vụ: Hãy tạo một bức thông điệp lời chúc HOÀN CHỈNH, ĐẸP ĐẼ và ẤM ÁP nhân dịp ").append(occasion).append(".\n\n");
 
-        if (prompt != null && !prompt.isBlank()) {
-            sb.append(language == WishLanguage.VI ? "Thông tin bối cảnh:\n" : "Context:\n")
-              .append(prompt).append("\n\n");
-        }
-
-        if (milestones != null && !milestones.isEmpty()) {
-            sb.append(language == WishLanguage.VI
-                    ? "Các cột mốc / thành tựu trong năm qua (BẮT BUỘC nhắc đến đầy đủ tất cả các mốc này trong lời chúc):\n"
-                    : "Memorable milestones achieved in the past year (MUST all be seamlessly included in the wish):\n");
-            for (String milestone : milestones) {
-                sb.append("- ").append(milestone).append("\n");
+            sb.append("=== 1. THIẾT LẬP VAI TRÒ & QUY TẮC XƯNG HÔ (CỰC KỲ QUAN TRỌNG - TUÂN THỦ TUYỆT ĐỐI) ===\n");
+            sb.append("- NGƯỜI NÓI / NGƯỜI GỬI LỜI CHÚC (Ngôi thứ nhất - Chủ thể phát ngôn):\n");
+            if (!pronounSelf.isBlank()) {
+                sb.append("  + Tự xưng là: \"").append(pronounSelf).append("\"\n");
+                sb.append("  + Đây là người đang viết bức thông điệp này gửi tới đối phương. Ví dụ người viết sẽ xưng: \"")
+                  .append(pronounSelf).append(" chúc...\", \"").append(pronounSelf)
+                  .append(" rất tự hào về...\", \"Với ").append(pronounSelf).append(", em luôn là...\".\n");
+            } else {
+                sb.append("  + Tự xưng một cách tự nhiên theo ngữ cảnh (ví dụ: mình, tôi, anh, chị).\n");
             }
-        } else {
-            sb.append(language == WishLanguage.VI
-                    ? "Lưu ý: Không có cột mốc cụ thể nào được ghi lại. Hãy viết một lời chúc chân thành, ấm áp và ý nghĩa chung.\n"
-                    : "Note: No specific milestones recorded. Write a warm, genuine, and meaningful general wish.\n");
-        }
 
-        if (language == WishLanguage.VI) {
-            sb.append("\nQuy tắc bắt buộc khi viết lời chúc:\n");
-            sb.append("1. NGÔN NGỮ: BẮT BUỘC viết 100% bằng TIẾNG VIỆT tự nhiên, đời thường. Tuyệt đối KHÔNG chêm tiếng Anh (ví dụ: ngày sinh nhật thì dùng 'Chúc mừng sinh nhật...', KHÔNG dùng 'Happy birthday').\n");
-            sb.append("2. TÍNH TRỌN VẸN & ĐỘ DÀI: Viết một bức thông điệp HOÀN CHỈNH gồm lời chào/mở đầu, thân bài điểm lại các cột mốc, và lời chúc kết lại trọn vẹn (khoảng 150-250 từ, 2-3 đoạn ngắn). Lời chúc phải có đầu có đuôi, tuyệt đối không ngắt ngang cụt lủn.\n");
-            sb.append("3. LỒNG GHÉP CỘT MỐC ĐẦY ĐỦ: Phải đưa đầy đủ tất cả các cột mốc đã liệt kê ở trên vào lời chúc một cách mượt mà, tự nhiên. Không liệt kê thô cứng như gạch đầu dòng báo cáo. KHÔNG lặp từ hoặc lặp cấu trúc câu (tránh lặp đi lặp lại 'chúc mừng bạn đã...', 'thật tuyệt khi...').\n");
-            sb.append("4. GIỌNG ĐIỆU CHÂN THÀNH: Giản dị, ấm áp, sâu sắc như lời nhắn gửi giữa người thân, bạn bè ngoài đời thật. KHÔNG dùng văn mẫu sáo rỗng, KHÔNG đao to búa lớn hay từ ngữ hoa mỹ quá đà.\n");
-            sb.append("5. XƯNG HÔ CHUẨN XÁC: Tuân thủ tuyệt đối cách xưng hô (Xưng là gì, Hô người nhận là gì) như đã được cung cấp trong thông tin bối cảnh.\n");
-            sb.append("6. ĐẦU RA DUY NHẤT: Chỉ trả về duy nhất nội dung lời chúc hoàn chỉnh. Tuyệt đối không thêm lời chào mở đầu của AI (như 'Dưới đây là lời chúc...', 'Chào bạn...') hay bất kỳ lời giải thích nào.");
+            sb.append("- NGƯỜI NHẬN LỜI CHÚC (Ngôi thứ hai - Người được chúc / Nhân vật chính của ngày hôm nay):\n");
+            sb.append("  + Tên: \"").append(recipientName).append("\"\n");
+            if (!pronounRecipient.isBlank()) {
+                sb.append("  + Được người gửi gọi thân mật là: \"").append(pronounRecipient).append("\"\n");
+                sb.append("  + Đây là người nhận được lời chúc hôm nay! Ví dụ người gửi sẽ gọi: \"Chúc mừng ")
+                  .append(occasion).append(" ").append(pronounRecipient).append("!\", \"Chúc ")
+                  .append(pronounRecipient).append(" tuổi mới...\", \"").append(pronounRecipient)
+                  .append(" đã làm rất tốt...\".\n");
+            } else {
+                sb.append("  + Được gọi là \"").append(recipientName).append("\" hoặc xưng hô phù hợp.\n");
+            }
+
+            sb.append("- CHỦ NHÂN CỦA CÁC CỘT MỐC / THÀNH TỰU:\n");
+            sb.append("  + MỌI CỘT MỐC ĐƯỢC LIỆT KÊ DƯỚI ĐÂY LÀ DO NGƯỜI NHẬN (")
+              .append(!pronounRecipient.isBlank() ? pronounRecipient : recipientName)
+              .append(") NỖ LỰC ĐẠT ĐƯỢC trong năm qua!\n");
+            sb.append("  + Người gửi (").append(!pronounSelf.isBlank() ? pronounSelf : "người viết")
+              .append(") KHÔNG PHẢI là người đạt được những điều đó, mà là người đồng hành, chứng kiến và tự hào về người nhận!\n");
+
+            sb.append("- CẢNH BÁO CHỐNG LỖI ĐẢO NGƯỢC XƯNG HÔ (NGHIÊM CẤM):\n");
+            if (!pronounSelf.isBlank() && !pronounRecipient.isBlank()) {
+                sb.append("  + TUYỆT ĐỐI CẤM chúc người nhận bằng đại từ của người gửi (CẤM chúc: \"Chúc mừng sinh nhật, ")
+                  .append(pronounSelf).append("\" hay \"Chúc ").append(pronounSelf).append(" luôn vui vẻ\").\n");
+                sb.append("  + Người gửi (\"").append(pronounSelf).append("\") đang chúc người nhận (\"")
+                  .append(pronounRecipient).append("\"). Bắt buộc người gửi xưng \"").append(pronounSelf)
+                  .append("\" và gọi người nhận là \"").append(pronounRecipient).append("\"!\n");
+            }
+
+            sb.append("\n=== 2. THÔNG TIN BỐI CẢNH ===\n");
+            sb.append("- Dịp: ").append(occasion).append("\n");
+            sb.append("- Giọng điệu mong muốn: ").append(tone).append("\n");
+            if (!notes.isBlank()) {
+                sb.append("- Ghi chú thêm về người nhận: ").append(notes).append("\n");
+            }
+            if (!customReq.isBlank()) {
+                sb.append("- Mong muốn riêng từ người gửi: ").append(customReq).append("\n");
+            }
+
+            sb.append("\n=== 3. CÁC CỘT MỐC ĐÃ ĐẠT ĐƯỢC (BẮT BUỘC ĐƯA VÀO LỜI CHÚC) ===\n");
+            if (milestones != null && !milestones.isEmpty()) {
+                sb.append("Người nhận đã đạt được / trải qua các cột mốc ý nghĩa sau trong năm qua:\n");
+                for (String m : milestones) {
+                    sb.append("- ").append(m).append("\n");
+                }
+            } else {
+                sb.append("(Không có cột mốc cụ thể nào được chọn. Hãy viết lời chúc chân thành, ấm áp chung).\n");
+            }
+
+            sb.append("\n=== 4. QUY TẮC VIẾT LỜI CHÚC BẮT BUỘC ===\n");
+            sb.append("1. NGÔN NGỮ: Viết 100% bằng TIẾNG VIỆT tự nhiên, tình cảm. Tuyệt đối KHÔNG chêm tiếng Anh (ví dụ: ngày sinh nhật thì dùng 'Chúc mừng sinh nhật...', KHÔNG dùng 'Happy birthday').\n");
+            sb.append("2. TUYỆT ĐỐI KHÔNG ĐỌC NGÀY THÁNG MÁY MÓC: Tuyệt đối không chép ngày tháng kiểu robot (như 'vào ngày 4-9-2026...', 'ngày 3-3-2026...'). Hãy điểm lại các cột mốc một cách mượt mà theo dòng chảy thời gian của năm qua (ví dụ: 'từ lúc tốt nghiệp đại học, rồi giành được suất học bổng, cho đến khi tự sắm được chiếc xe máy mới...').\n");
+            sb.append("3. LỐI VIẾT CHÂN THÀNH, ĐỜI THƯỜNG: Giản dị, ấm áp như lời nhắn gửi giữa những người thân thiết ngoài đời thật. KHÔNG dùng văn mẫu sáo rỗng, KHÔNG đao to búa lớn, KHÔNG dùng từ hoa mỹ cường điệu (như 'minh chứng cho tài năng không ngừng', 'dấu hiệu của sự quyết tâm tiến bước').\n");
+            sb.append("4. TÍNH TRỌN VẸN & ĐỘ DÀI: Viết một bức thông điệp HOÀN CHỈNH gồm: (1) Lời mở đầu ấm áp chào đón dịp đặc biệt, (2) Đoạn chia sẻ, điểm lại các cột mốc với sự tự hào/yêu thương, (3) Lời chúc kết thúc đong đầy hy vọng cho tuổi mới/chặng đường mới. Độ dài khoảng 150 đến 250 từ (2 đến 3 đoạn văn ngắn). Tuyệt đối không ngắt cụt lửng.\n");
+            sb.append("5. ĐẦU RA DUY NHẤT: CHỈ trả về đúng nội dung lời chúc hoàn chỉnh. KHÔNG thêm bất kỳ lời chào mở đầu hay giải thích nào của AI.");
         } else {
-            sb.append("\nStrict rules for generating the wish:\n");
-            sb.append("1. LANGUAGE: Write 100% in fluent, natural English. Do not mix other languages.\n");
-            sb.append("2. COMPLETENESS & LENGTH: Write a COMPLETE message with an opening, milestone reflections, and a warm closing (approx. 150-250 words, 2-3 short paragraphs). Never cut off mid-sentence.\n");
-            sb.append("3. MILESTONE INTEGRATION: Seamlessly incorporate ALL provided milestones. Do not list them like a résumé or repeat identical praising phrases.\n");
-            sb.append("4. AUTHENTIC TONE: Sincere, down-to-earth, and personal. Avoid corporate clichés or overly melodramatic phrasing.\n");
-            sb.append("5. ADDRESSING: Respect sender and recipient pronouns/names exactly as specified.\n");
-            sb.append("6. OUTPUT: Return ONLY the finished wish text itself, without any introductory meta-commentary or concluding remarks.");
+            sb.append("You are an expert personal wish writer who crafts warm, heartfelt, and memorable messages.\n");
+            sb.append("Task: Write a COMPLETE, BEAUTIFUL, and HEARTFELT message for ").append(occasion).append(".\n\n");
+
+            sb.append("=== 1. ROLES & PRONOUN RULES (STRICT COMPLIANCE REQUIRED) ===\n");
+            sb.append("- SENDER (First person - Speaker):\n");
+            if (!pronounSelf.isBlank()) {
+                sb.append("  + Refers to self as: \"").append(pronounSelf).append("\"\n");
+            } else {
+                sb.append("  + Refers to self naturally (e.g. \"I\").\n");
+            }
+
+            sb.append("- RECIPIENT (Second person - Honoree/Celebrant):\n");
+            sb.append("  + Name: \"").append(recipientName).append("\"\n");
+            if (!pronounRecipient.isBlank()) {
+                sb.append("  + Addressed as: \"").append(pronounRecipient).append("\"\n");
+            } else {
+                sb.append("  + Addressed as \"").append(recipientName).append("\" or natural second person.\n");
+            }
+
+            sb.append("- OWNER OF MILESTONES: ALL milestones listed below were achieved by the RECIPIENT (")
+              .append(!pronounRecipient.isBlank() ? pronounRecipient : recipientName).append(")!\n");
+            sb.append("  The sender is expressing proud support and affection for the recipient.\n");
+
+            sb.append("- CRITICAL: NEVER reverse the pronouns (do not wish the sender a happy birthday!).\n");
+
+            sb.append("\n=== 2. CONTEXT ===\n");
+            sb.append("- Occasion: ").append(occasion).append("\n");
+            sb.append("- Tone: ").append(tone).append("\n");
+            if (!notes.isBlank()) {
+                sb.append("- Personal notes: ").append(notes).append("\n");
+            }
+            if (!customReq.isBlank()) {
+                sb.append("- Custom request: ").append(customReq).append("\n");
+            }
+
+            sb.append("\n=== 3. MILESTONES (ALL MUST BE INTEGRATED) ===\n");
+            if (milestones != null && !milestones.isEmpty()) {
+                for (String m : milestones) {
+                    sb.append("- ").append(m).append("\n");
+                }
+            } else {
+                sb.append("(No specific milestones. Write a warm general message).\n");
+            }
+
+            sb.append("\n=== 4. WRITING RULES ===\n");
+            sb.append("1. LANGUAGE: 100% natural, fluent English.\n");
+            sb.append("2. DO NOT RECITE DATES ROBOTICALLY: Weave events smoothly without mechanical timestamp phrasing.\n");
+            sb.append("3. TONE: Sincere, down-to-earth, and personal. Avoid stiff corporate jargon or exaggerated clichés.\n");
+            sb.append("4. COMPLETENESS & LENGTH: A complete 3-part wish (warm greeting, milestone reflections, uplifting closing), approx. 150-250 words (2-3 short paragraphs). Never truncate.\n");
+            sb.append("5. OUTPUT: Output ONLY the final wish text.");
         }
 
         return sb.toString();
