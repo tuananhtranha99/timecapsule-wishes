@@ -6,6 +6,7 @@ import com.timecapsule.wishes.dto.response.WishResponse;
 import com.timecapsule.wishes.entity.GeneratedWish;
 import com.timecapsule.wishes.entity.Milestone;
 import com.timecapsule.wishes.entity.Recipient;
+import com.timecapsule.wishes.enums.WishLanguage;
 import com.timecapsule.wishes.exception.ResourceNotFoundException;
 import com.timecapsule.wishes.mapper.WishMapper;
 import com.timecapsule.wishes.repository.GeneratedWishRepository;
@@ -67,7 +68,13 @@ public class WishGenerationServiceImpl implements WishGenerationService {
         if (recipient.getNotes() != null && !recipient.getNotes().isBlank()) {
             contextBuilder.append(". Ghi chú cá nhân: ").append(recipient.getNotes());
         }
-        contextBuilder.append(". Dịp: ").append(request.occasionType());
+        String occasionDesc = switch (request.occasionType()) {
+            case BIRTHDAY -> (request.language() == WishLanguage.EN ? "Birthday" : "Sinh nhật");
+            case TET -> (request.language() == WishLanguage.EN ? "Lunar New Year" : "Tết Nguyên Đán");
+            case ANNIVERSARY -> (request.language() == WishLanguage.EN ? "Anniversary" : "Kỷ niệm");
+            case CUSTOM -> (request.language() == WishLanguage.EN ? "Special Occasion" : "Dịp đặc biệt");
+        };
+        contextBuilder.append(". Dịp: ").append(occasionDesc);
         if (request.customPrompt() != null && !request.customPrompt().isBlank()) {
             contextBuilder.append(". Yêu cầu bổ sung: ").append(request.customPrompt());
         }

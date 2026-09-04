@@ -103,4 +103,47 @@ class GeminiClientImplTest {
                 geminiClient.generateWish("Test", List.of(), WishLanguage.EN));
         mockServer.verify();
     }
+
+    @Test
+    @DisplayName("Should ignore thought parts and concatenate all text parts from Gemini response")
+    void testGenerateWish_MultiPartWithThought_IgnoresThoughtAndConcatenatesText() {
+        String expectedUrl = String.format("%s/v1beta/models/%s:generateContent?key=%s", baseUrl, model, apiKey);
+
+        String mockResponseBody = """
+                {
+                  "candidates": [
+                    {
+                      "content": {
+                        "parts": [
+                          {
+                            "thought": true,
+                            "text": "Thinking process: user wants a warm Vietnamese birthday wish..."
+                          },
+                          {
+                            "text": "Chúc mừng sinh nhật Hoài Ninh! "
+                          },
+                          {
+                            "text": "Chúc em tuổi mới luôn vui vẻ và tỏa sáng rực rỡ!"
+                          }
+                        ],
+                        "role": "model"
+                      },
+                      "finishReason": "STOP"
+                    }
+                  ]
+                }
+                """;
+
+        mockServer.expect(requestTo(expectedUrl))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(mockResponseBody, MediaType.APPLICATION_JSON));
+
+        String wish = geminiClient.generateWish("Context", List.of("Milestone 1"), WishLanguage.VI);
+
+        assertNotNull(wish);
+        assertFalse(wish.contains("Thinking process"));
+        assertTrue(wish.contains("Chúc mừng sinh nhật Hoài Ninh!"));
+        assertTrue(wish.contains("Chúc em tuổi mới"));
+        mockServer.verify();
+    }
 }
