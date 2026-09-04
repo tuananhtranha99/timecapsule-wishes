@@ -98,15 +98,15 @@ public class GroqClientImpl implements AiClient {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put("model", targetModel);
         payload.put("temperature", 0.7);
-        payload.put("max_tokens", 1000);
+        payload.put("max_tokens", 450);
 
         ArrayNode messages = payload.putArray("messages");
 
         ObjectNode systemMsg = messages.addObject();
         systemMsg.put("role", "system");
         systemMsg.put("content", language == WishLanguage.VI
-                ? "Bạn là một người bạn thân thiết, ấm áp và chân thành, chuyên viết lời chúc cá nhân hóa sâu sắc."
-                : "You are a warm, thoughtful, and genuine personal wish writer creating deeply personalized wishes.");
+                ? "Bạn là người viết lời chúc chân thành, ngắn gọn và gần gũi. Tuyệt đối không dùng văn mẫu hoa mỹ, sáo rỗng hay viết dài dòng."
+                : "You are a thoughtful personal wish writer who writes concise, genuine, and grounded wishes without clichéd fluff.");
 
         ObjectNode userMsg = messages.addObject();
         userMsg.put("role", "user");
@@ -194,19 +194,21 @@ public class GroqClientImpl implements AiClient {
     private String buildPrompt(String prompt, List<String> milestones, WishLanguage language) {
         StringBuilder sb = new StringBuilder();
         if (language == WishLanguage.VI) {
-            sb.append("Hãy viết một lời chúc thật cảm động, tự nhiên và mang tính cá nhân hóa cao ");
-            sb.append("dựa trên các cột mốc (milestones) đáng nhớ sau đây của người nhận trong năm qua.\n\n");
+            sb.append("Bạn là người viết lời chúc chân thành, gần gũi và sâu sắc. ");
+            sb.append("Hãy viết một lời chúc ngắn gọn, súc tích (khoảng 2 đến 3 đoạn văn ngắn, tuyệt đối không viết dài dòng lê thê) ");
+            sb.append("dựa trên các thông tin và cột mốc đáng nhớ sau đây.\n\n");
         } else {
-            sb.append("Write a touching, natural, and deeply personalized wish message ");
-            sb.append("based on the memorable milestones the recipient experienced over the past year.\n\n");
+            sb.append("You are a thoughtful, warm, and authentic wish writer. ");
+            sb.append("Write a concise, heartfelt wish (around 2 to 3 short paragraphs, avoid being overly verbose) ");
+            sb.append("based on the memorable milestones below.\n\n");
         }
 
         if (prompt != null && !prompt.isBlank()) {
-            sb.append("Thông tin thêm (Additional Context): ").append(prompt).append("\n\n");
+            sb.append("Thông tin bối cảnh (Context): ").append(prompt).append("\n\n");
         }
 
         if (milestones != null && !milestones.isEmpty()) {
-            sb.append("Các cột mốc đạt được (Milestones):\n");
+            sb.append("Các cột mốc đạt được (Milestones - hãy đưa đầy đủ vào lời chúc):\n");
             for (String milestone : milestones) {
                 sb.append("- ").append(milestone).append("\n");
             }
@@ -215,15 +217,19 @@ public class GroqClientImpl implements AiClient {
         }
 
         if (language == WishLanguage.VI) {
-            sb.append("\nYêu cầu về lời chúc:\n");
-            sb.append("1. Ngôn ngữ: Tiếng Việt tự nhiên, ấm áp, tình cảm.\n");
-            sb.append("2. Lồng ghép các cột mốc một cách tinh tế và khéo léo, không liệt kê máy móc.\n");
-            sb.append("3. Chỉ trả về nội dung lời chúc, không thêm lời mở đầu chào hỏi của AI hay giải thích gì thêm.");
+            sb.append("\nYêu cầu bắt buộc khi tạo lời chúc:\n");
+            sb.append("1. Độ dài: Ngắn gọn, cô đọng (chỉ từ 2 đến 3 đoạn văn ngắn), tránh lan man dài dòng.\n");
+            sb.append("2. Lồng ghép cột mốc: Phải nhắc đến đầy đủ các cột mốc trên nhưng không liệt kê máy móc, không lặp từ (tránh lặp lại nhiều lần các cụm từ như 'chúc mừng bạn đã...', 'thật tự hào khi bạn...'). Hãy xâu chuỗi chúng một cách tự nhiên.\n");
+            sb.append("3. Giọng văn: Giản dị, chân thành, tự nhiên như lời nhắn gửi giữa người thân/bạn bè ngoài đời. Tuyệt đối không dùng từ ngữ sáo rỗng, đao to búa lớn hay văn mẫu hoa mỹ quá đà.\n");
+            sb.append("4. Cách xưng hô: Tuân thủ tuyệt đối thông tin xưng hô (Xưng và Hô) nếu đã được cung cấp trong phần bối cảnh.\n");
+            sb.append("5. Chỉ trả về nội dung lời chúc hoàn chỉnh, không thêm lời chào mở đầu của AI hay bất kỳ lời giải thích nào.");
         } else {
-            sb.append("\nWish requirements:\n");
-            sb.append("1. Language: Natural, warm, and heartfelt English.\n");
-            sb.append("2. Weave the milestones seamlessly and meaningfully, do not mechanically list them.\n");
-            sb.append("3. Return ONLY the wish text itself, without introductory AI greetings or explanations.");
+            sb.append("\nStrict requirements:\n");
+            sb.append("1. Length: Concise and focused (2-3 short paragraphs max), no unnecessary filler.\n");
+            sb.append("2. Milestones: Weave all provided milestones seamlessly, without repetitive sentence structures.\n");
+            sb.append("3. Tone: Down-to-earth, sincere, and natural. Avoid pompous or clichéd corporate jargon.\n");
+            sb.append("4. Addressing: Strictly respect any specified pronouns and tone.\n");
+            sb.append("5. Return ONLY the wish text itself, without introductory AI greetings or explanations.");
         }
 
         return sb.toString();
